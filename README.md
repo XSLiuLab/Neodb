@@ -1,0 +1,2 @@
+- Source_code is R Shiny code for Web server
+- Model is the R and Python code to build Immuno-GNN model.
