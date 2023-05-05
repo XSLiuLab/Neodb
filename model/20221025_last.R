@@ -450,10 +450,10 @@ calc_auc(p1)$AUC
 ###ROC
 library(dplyr)
 library(ggprism)
-files <- list.files("data/models/",pattern = "train",full.names = T)
+files <- list.files("~/Neodb/model/CV",pattern = "train",full.names = T)
 train_dt <- lapply(files, function(x){
   dt <- read.csv(x) %>% select(-X)
-  dt$fold <- gsub("data/models//gnn_train_res_","",x) %>% gsub(".csv","",.)
+  dt$fold <- gsub("/home/wt/Neodb/model/CV/gnn_train_res_","",x) %>% gsub(".csv","",.)
   dt
 }) %>% bind_rows()
 train_dt$fold <- paste0("Fold ",as.numeric(train_dt$fold)+1)
@@ -481,10 +481,10 @@ p1 <- ggplot(train_dt, aes(d = all_labels, m = all_preds_raw, color = fold)) +
   labs(x="FPR",y="TPR",title="Cross Validation-Train")+
   theme(legend.position = c(0.7, 0.4))
 p1
-files <- list.files("data/models/",pattern = "test",full.names = T)
+files <- list.files("~/Neodb/model/CV",pattern = "test",full.names = T)
 test_dt <- lapply(files, function(x){
   dt <- read.csv(x) %>% select(-X)
-  dt$fold <- gsub("data/models//gnn_test_res_","",x) %>% gsub(".csv","",.)
+  dt$fold <- gsub("/home/wt/Neodb/model/CV/gnn_test_res_","",x) %>% gsub(".csv","",.)
   dt
 }) %>% bind_rows()
 test_dt$fold <- paste0("Fold ",as.numeric(test_dt$fold)+1)
@@ -538,3 +538,59 @@ xlsx::write.xlsx(deepimmuno_res,file = "~/Neodb_model/data/val_res.xlsx",
                  sheetName = "Deepimmuno",append = TRUE)
 xlsx::write.xlsx(seq2neo_immuno_res,file = "~/Neodb_model/data/val_res.xlsx",
                  sheetName = "Seq2Neo",append = TRUE)
+
+###add interval
+library(pROC)
+
+roc_with_ci <- function(train, test , title) {
+  obj_1 <- roc(train$all_labels, train$all_preds_raw, ci=TRUE, plot=FALSE)
+  obj_2 <- roc(test$all_labels, test$all_preds_raw, ci=TRUE, plot=FALSE)
+  obj_list <- list(train=obj_1,test=obj_2)
+  names(obj_list) <- c(paste0("Train: ",
+                              capture.output(obj_list[[1]]$ci) %>% 
+                                gsub("[ (DeLong)]","",.)),
+                       paste0("Test: ",
+                              capture.output(obj_list[[2]]$ci) %>% 
+                                gsub("[ (DeLong)]","",.)))
+  ci_list <- lapply(obj_list,
+                    function(obj){
+                      ciobj <- ci.se(obj, specificities = seq(0, 1, l = 25))
+                      dat.ci <- data.frame(x = as.numeric(rownames(ciobj)),
+                                           lower = ciobj[, 1],
+                                           upper = ciobj[, 3])
+                      return(dat.ci)
+                    })
+  p <- ggroc(obj_list) + 
+    theme_minimal() + 
+    geom_abline(slope=1, intercept = 1, linetype = "dashed", 
+                alpha=0.7, color = "grey") + coord_equal()
+  
+  for(i in 1:2) {
+    p <- p + geom_ribbon(
+      data = ci_list[[i]],
+      aes(x = x, ymin = lower, ymax = upper),
+      fill = i + 1,
+      alpha = 0.2,
+      inherit.aes = F) +
+      ggtitle(title)+
+      guides(fill=guide_legend(title=NULL))
+  } 
+  return(p)
+} 
+
+p_res <- vector("list",10)
+for (i in 1:10){
+  dt_train <- train_dt %>% filter(fold == paste0("Fold ",i))
+  dt_test <- test_dt %>% filter(fold == paste0("Fold ",i))
+  p <- roc_with_ci(dt_train,dt_test,title = paste0("Fold ",i))
+  p_res[[i]] <- p
+}
+
+library(patchwork)
+
+wrap_plots(p_res,ncol = 3,nrow = 4)
+
+
+
+
+
