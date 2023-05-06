@@ -31,7 +31,6 @@ message(Sys.getenv("PATH"))
 Sys.setenv(PATH="/home/ubuntu/miniconda3/bin:/home/ubuntu/miniconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin")
 message(Sys.getenv("PATH"))
 options(shiny.maxRequestSize=10*1024^2)
-TP53 <- readRDS("data/driver/TP53/neo.rds")
 neodb_all <- readRDS("data/neodb_all.rds")
 neodb_all <- neodb_all %>% filter(Gene != "NA") %>% filter(Gene != "ERBB2IP<U+00A0") %>%
         filter(!(HLA %in% c("Class I","ClassII","Class II","Class I and II")))
@@ -324,6 +323,7 @@ server <- function(input, output, session) {
     currentaa <- anchar[anchar$gene == input$gene_name,"aa"]
     req((aa_change() %in% currentaa$aa))
     if (input$gene_name == "TP53"){
+      TP53 <- readRDS("data/driver/TP53/neo.rds")
       dt <- TP53
     }else {
       dt <- readRDS(paste0("data/driver/",gene_name(),"/neo.rds"))
@@ -371,6 +371,7 @@ server <- function(input, output, session) {
              input$aa_change_text,input$aa_change)
     })
     if (gene_name() == "TP53"){
+      TP53 <- readRDS("data/driver/TP53/neo.rds")
       dt <- TP53
     }else {
       dt <- readRDS(paste0("data/driver/",gene_name(),"/neo.rds"))
